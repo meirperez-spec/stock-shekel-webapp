@@ -1,43 +1,8 @@
-import time
-
 from flask import Flask, render_template, request, jsonify
 
 from stock_lookup import lookup, TickerNotFoundError, PriceUnavailableError
 
 app = Flask(__name__)
-
-# Simple in-memory cache for exchange rates
-_cache = {}
-CACHE_TTL = 300  # 5 minutes
-
-
-def _cached_lookup(query: str, amount_ils: float) -> dict:
-    """Wrapper around lookup() with basic caching for exchange rates."""
-    # Cache key based on query (not amount, since amount doesn't affect API calls)
-    cache_key = query.strip().upper()
-    now = time.time()
-
-    # Check if we have a recent result for this ticker
-    if cache_key in _cache and (now - _cache[cache_key]["time"]) < CACHE_TTL:
-        cached = _cache[cache_key]["data"]
-        # Recalculate shares with the new amount using cached price
-        price_ils = cached["price_ils"]
-        shares_fractional = amount_ils / price_ils
-        shares_whole = int(shares_fractional)
-        cost_whole = shares_whole * price_ils
-        remainder = amount_ils - cost_whole
-        return {
-            **cached,
-            "amount_ils": amount_ils,
-            "shares_fractional": round(shares_fractional, 4),
-            "shares_whole": shares_whole,
-            "cost_whole_ils": round(cost_whole, 2),
-            "remainder_ils": round(remainder, 2),
-        }
-
-    result = lookup(query, amount_ils)
-    _cache[cache_key] = {"data": result, "time": now}
-    return result
 
 
 @app.route("/")
@@ -66,7 +31,7 @@ def api_lookup():
         return jsonify({"error": "Amount must be positive"}), 400
 
     try:
-        result = _cached_lookup(query, amount)
+        result = lookup(query, amount)
         return jsonify(result)
     except TickerNotFoundError:
         return jsonify({"error": f"Could not find a stock matching '{query}'"}), 404
