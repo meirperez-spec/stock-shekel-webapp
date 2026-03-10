@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Shekel Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes countUp {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 0.4; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+        .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .count-up { animation: countUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both; }
+        .spinner {
+            border: 2.5px solid rgba(255,255,255,0.3);
+            border-top: 2.5px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Ticker tape */
+        .ticker-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        /* Glass card */
+        .glass-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        /* Input glow */
+        .input-glow:focus {
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), 0 1px 2px rgba(0,0,0,0.05);
+            border-color: #22c55e;
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Result header */
+        .result-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+        }
+
+        /* Stat card hover */
+        .stat-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        /* Live dot */
+        .live-dot {
+            width: 6px; height: 6px;
+            background: #22c55e;
+            border-radius: 50%;
+            position: relative;
+        }
+        .live-dot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        /* Number font */
+        .font-mono-num {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Animated stock chart line in hero */
+        @keyframes drawLine {
+            from { stroke-dashoffset: 1200; }
+            to { stroke-dashoffset: 0; }
+        }
+        .chart-line {
+            stroke-dasharray: 1200;
+            animation: drawLine 3s ease-out forwards;
+        }
+        .chart-line-delayed {
+            stroke-dasharray: 1200;
+            animation: drawLine 3s ease-out 0.5s forwards;
+            stroke-dashoffset: 1200;
+        }
+
+        /* Floating candlesticks */
+        @keyframes floatCandle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .candle-float { animation: floatCandle 4s ease-in-out infinite; }
+        .candle-float-delayed { animation: floatCandle 4s ease-in-out 1s infinite; }
+        .candle-float-slow { animation: floatCandle 5s ease-in-out 2s infinite; }
+
+        /* Glow orbs */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 min-h-screen font-sans">
+
+    <!-- Top Ticker Bar -->
+    <div class="ticker-bg border-b border-slate-800">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="flex items-center gap-2">
+                    <div class="bg-emerald-500/20 rounded-lg p-1.5">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h4l3-9 4 18 3-9h4"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-base font-bold text-white tracking-tight">StockShekel</h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <div class="live-dot"></div>
+                <span class="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">Live</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"></div>
+
+        <!-- Grid pattern -->
+        <div class="absolute inset-0 opacity-[0.04]" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><line x1=%220%22 y1=%2260%22 x2=%2260%22 y2=%2260%22 stroke=%22white%22 stroke-width=%220.5%22/><line x1=%2260%22 y1=%220%22 x2=%2260%22 y2=%2260%22 stroke=%22white%22 stroke-width=%220.5%22/></svg>')"></div>
+
+        <!-- Glow orbs -->
+        <div class="glow-orb w-72 h-72 bg-emerald-500/10 -top-20 -left-20"></div>
+        <div class="glow-orb w-96 h-96 bg-blue-500/8 -top-32 right-0"></div>
+        <div class="glow-orb w-48 h-48 bg-emerald-400/5 bottom-0 left-1/3"></div>
+
+        <!-- Animated stock chart line background -->
+        <div class="absolute inset-0 flex items-end overflow-hidden">
+            <svg class="w-full h-48 opacity-[0.07]" viewBox="0 0 1200 200" fill="none" preserveAspectRatio="none">
+                <!-- Green uptrend line -->
+                <path class="chart-line" d="M0 180 L50 170 L100 160 L150 140 L200 150 L250 120 L300 130 L350 90 L400 100 L450 70 L500 80 L550 60 L600 65 L650 40 L700 55 L750 30 L800 45 L850 25 L900 35 L950 20 L1000 28 L1050 15 L1100 22 L1150 10 L1200 18" stroke="#22c55e" stroke-width="2"/>
+                <!-- Area fill under the line -->
+                <path d="M0 180 L50 170 L100 160 L150 140 L200 150 L250 120 L300 130 L350 90 L400 100 L450 70 L500 80 L550 60 L600 65 L650 40 L700 55 L750 30 L800 45 L850 25 L900 35 L950 20 L1000 28 L1050 15 L1100 22 L1150 10 L1200 18 L1200 200 L0 200 Z" fill="url(#chartGrad)"/>
+                <defs>
+                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#22c55e" stop-opacity="0.3"/>
+                        <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+
+        <!-- Candlestick decorations -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <svg class="absolute left-[8%] top-12 opacity-[0.08] candle-float" width="20" height="80" viewBox="0 0 20 80">
+                <line x1="10" y1="0" x2="10" y2="80" stroke="#22c55e" stroke-width="1.5"/>
+                <rect x="3" y="15" width="14" height="30" rx="2" fill="#22c55e"/>
+            </svg>
+            <svg class="absolute left-[15%] top-20 opacity-[0.06] candle-float-delayed" width="20" height="60" viewBox="0 0 20 60">
+                <line x1="10" y1="0" x2="10" y2="60" stroke="#ef4444" stroke-width="1.5"/>
+                <rect x="3" y="10" width="14" height="25" rx="2" fill="#ef4444"/>
+            </svg>
+            <svg class="absolute right-[12%] top-8 opacity-[0.07] candle-float-slow" width="20" height="90" viewBox="0 0 20 90">
+                <line x1="10" y1="0" x2="10" y2="90" stroke="#22c55e" stroke-width="1.5"/>
+                <rect x="3" y="20" width="14" height="35" rx="2" fill="#22c55e"/>
+            </svg>
+            <svg class="absolute right-[22%] top-16 opacity-[0.05] candle-float" width="20" height="55" viewBox="0 0 20 55">
+                <line x1="10" y1="0" x2="10" y2="55" stroke="#ef4444" stroke-width="1.5"/>
+                <rect x="3" y="8" width="14" height="22" rx="2" fill="#ef4444"/>
+            </svg>
+            <svg class="absolute left-[30%] top-6 opacity-[0.05] candle-float-delayed" width="20" height="70" viewBox="0 0 20 70">
+                <line x1="10" y1="0" x2="10" y2="70" stroke="#22c55e" stroke-width="1.5"/>
+                <rect x="3" y="12" width="14" height="28" rx="2" fill="#22c55e"/>
+            </svg>
+            <svg class="absolute right-[35%] top-10 opacity-[0.04] candle-float-slow" width="20" height="65" viewBox="0 0 20 65">
+                <line x1="10" y1="0" x2="10" y2="65" stroke="#22c55e" stroke-width="1.5"/>
+                <rect x="3" y="15" width="14" height="20" rx="2" fill="#22c55e"/>
+            </svg>
+        </div>
+
+        <div class="relative max-w-3xl mx-auto px-4 pt-14 pb-10 text-center">
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-3 tracking-tight">
+                Shekels <span class="gradient-text">to Shares</span>
+            </h2>
+            <p class="text-slate-400 text-sm sm:text-base max-w-md mx-auto">
+                Enter any stock and your budget in ILS — instantly see how many shares you can afford.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="relative max-w-xl mx-auto px-4 -mt-2 pb-12">
+
+        <!-- Input Card -->
+        <div class="glass-card rounded-2xl shadow-xl shadow-black/20 p-6 mb-6">
+            <form id="lookup-form" class="space-y-4">
+                <!-- Company / Ticker Input -->
+                <div>
+                    <label for="query" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                        Company or Ticker
+                    </label>
+                    <div class="relative">
+                        <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            id="query"
+                            placeholder="Apple, AAPL, TSMC..."
+                            autocomplete="off"
+                            class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-white input-glow outline-none transition text-slate-900 text-sm font-medium placeholder-slate-400"
+                        />
+                    </div>
+                </div>
+
+                <!-- Amount Input -->
+                <div>
+                    <label for="amount" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                        Budget (ILS)
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-base">&#8362;</span>
+                        <input
+                            type="number"
+                            id="amount"
+                            min="1"
+                            step="any"
+                            placeholder="1,000"
+                            class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white input-glow outline-none transition text-slate-900 text-sm font-medium placeholder-slate-400 font-mono-num"
+                        />
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="submit-btn"
+                    class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98]"
+                >
+                    <span id="btn-text">Calculate Shares</span>
+                    <div id="btn-spinner" class="spinner hidden"></div>
+                </button>
+            </form>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-box" class="hidden mb-6 bg-red-950/50 border border-red-500/30 rounded-2xl p-4 backdrop-blur-sm">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-red-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
+                </svg>
+                <p id="error-text" class="text-sm text-red-300"></p>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div id="results" class="hidden">
+            <div class="rounded-2xl overflow-hidden shadow-2xl shadow-black/30 fade-in-up border border-slate-800">
+
+                <!-- Company Header -->
+                <div class="result-header px-6 py-5 relative overflow-hidden">
+                    <!-- Mini chart decoration in header -->
+                    <svg class="absolute right-0 bottom-0 h-full w-1/2 opacity-[0.06]" viewBox="0 0 300 100" fill="none" preserveAspectRatio="none">
+                        <path d="M0 80 L30 70 L60 75 L90 50 L120 60 L150 35 L180 45 L210 20 L240 30 L270 15 L300 25" stroke="#22c55e" stroke-width="1.5"/>
+                        <path d="M0 80 L30 70 L60 75 L90 50 L120 60 L150 35 L180 45 L210 20 L240 30 L270 15 L300 25 L300 100 L0 100 Z" fill="url(#resultGrad)"/>
+                        <defs>
+                            <linearGradient id="resultGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#22c55e" stop-opacity="0.4"/>
+                                <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="relative flex items-start justify-between">
+                        <div class="min-w-0 flex-1 mr-4">
+                            <h2 id="r-name" class="text-lg font-bold text-white truncate"></h2>
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span id="r-symbol" class="bg-white/10 text-emerald-400 text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide"></span>
+                                <span id="r-exchange" class="text-slate-400 text-[11px] font-medium"></span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div id="r-price-main" class="text-2xl font-extrabold text-white font-mono-num"></div>
+                            <div id="r-price-sub" class="text-slate-400 text-xs mt-1 font-mono-num"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exchange Rate Bar -->
+                <div id="r-fx-row" class="px-6 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+                        </svg>
+                        <span class="text-xs text-slate-400">Exchange Rate</span>
+                    </div>
+                    <span id="r-fx" class="text-xs font-semibold text-slate-300 font-mono-num"></span>
+                </div>
+
+                <!-- Share Calculation Body -->
+                <div class="bg-slate-900 px-6 py-7">
+                    <!-- Main share count -->
+                    <div class="text-center mb-6">
+                        <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3">
+                            With <span id="r-budget" class="text-slate-300"></span> you can buy
+                        </div>
+                        <div class="count-up">
+                            <span id="r-shares-big" class="text-6xl font-extrabold gradient-text font-mono-num"></span>
+                        </div>
+                        <div id="r-shares-label" class="text-slate-400 text-sm mt-1 font-medium"></div>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 gap-3 mt-6">
+                        <div class="stat-card bg-slate-800/80 rounded-xl p-4 text-center border border-slate-700/50">
+                            <div class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-1.5">Total Cost</div>
+                            <div id="r-cost" class="text-base font-bold text-white font-mono-num"></div>
+                        </div>
+                        <div class="stat-card bg-slate-800/80 rounded-xl p-4 text-center border border-slate-700/50">
+                            <div class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-1.5">Remaining</div>
+                            <div id="r-remainder" class="text-base font-bold text-white font-mono-num"></div>
+                        </div>
+                    </div>
+
+                    <!-- Fractional shares -->
+                    <div class="mt-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 flex items-start gap-3">
+                        <svg class="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+                        </svg>
+                        <div class="text-xs text-emerald-300/90">
+                            With fractional shares you could buy <strong id="r-fractional" class="text-emerald-300 font-mono-num"></strong> shares using your full budget.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="max-w-xl mx-auto px-4 pb-8">
+        <p class="text-center text-[11px] text-slate-600">
+            Prices from Yahoo Finance. For informational purposes only — not financial advice.
+        </p>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
